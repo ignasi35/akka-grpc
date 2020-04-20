@@ -9,6 +9,7 @@ import java.util.concurrent.CompletionException
 import akka.actor.ActorSystem
 import akka.actor.ClassicActorSystemProvider
 import akka.annotation.ApiMayChange
+import akka.annotation.InternalApi
 import akka.grpc.{ GrpcServiceException, Trailers }
 import akka.grpc.GrpcProtocol.GrpcProtocolWriter
 import akka.grpc.internal.{ GrpcResponseHelpers, MissingParameterException }
@@ -30,7 +31,8 @@ object GrpcExceptionHandler {
         default(system)
     }
 
-  def default(system: ActorSystem): jFunction[Throwable, Trailers] =
+  @InternalApi
+  private def default(system: ActorSystem): jFunction[Throwable, Trailers] =
     new jFunction[Throwable, Trailers] {
       override def apply(param: Throwable): Trailers = param match {
         case e: ExecutionException =>
