@@ -27,7 +27,7 @@ install: jabba install "$TRAVIS_JDK" && jabba use "$_" && java -Xmx32m -version
 
 jobs:
   include:
-    - script: sbt -jvm-opts .jvmopts-travis ++2.13.1 mimaReportBinaryIssues ++2.12.10 mimaReportBinaryIssues headerCheckAll grpcVersionSyncCheck scalafmtCheckAll scalafmtSbtCheck
+    - script: sbt -jvm-opts .jvmopts-travis ++2.13.1 mimaReportBinaryIssues ++2.12.10 mimaReportBinaryIssues headerCheckAll grpcVersionSyncCheck grpcVersionSyncCheck scalafmtSbtCheck
       name: checks
     - script: sbt scripted
       name: Test scripted
