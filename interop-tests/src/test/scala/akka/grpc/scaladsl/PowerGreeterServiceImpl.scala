@@ -10,8 +10,14 @@ import akka.stream.scaladsl.{ Sink, Source }
 import example.myapp.helloworld.grpc.helloworld._
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
-class PowerGreeterServiceImpl(implicit system: ActorSystem) extends GreeterServicePowerApi {
+/**
+ * @param maxReplies used to limit the number of replies in streamed responses.
+ * @param system
+ */
+class PowerGreeterServiceImpl(maxReplies: Int = Int.MaxValue)(implicit system: ActorSystem)
+    extends GreeterServicePowerApi {
   import system.dispatcher
 
   override def sayHello(in: HelloRequest, metadata: Metadata): Future[HelloReply] = {
@@ -29,7 +35,11 @@ class PowerGreeterServiceImpl(implicit system: ActorSystem) extends GreeterServi
   override def itKeepsReplying(in: HelloRequest, metadata: Metadata): Source[HelloReply, NotUsed] = {
     val greetee = authTaggedName(in, metadata)
     println(s"sayHello to $greetee with stream of chars...")
-    Source(s"Hello, $greetee".toList).map(character => HelloReply(character.toString))
+    Source
+      .repeat(s"Hello, $greetee".toList)
+      .take(maxReplies)
+      .throttle(1, 100.millis)
+      .map(character => HelloReply(character.toString))
   }
 
   override def streamHellos(in: Source[HelloRequest, NotUsed], metadata: Metadata): Source[HelloReply, NotUsed] = {
