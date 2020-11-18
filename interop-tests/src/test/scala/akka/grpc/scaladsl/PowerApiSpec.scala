@@ -9,8 +9,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Future
-
 import scala.concurrent.duration._
+
 import akka.actor.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.grpc.internal.{ GrpcEntityHelpers, GrpcProtocolNative, GrpcResponseHelpers, HeaderMetadataImpl, Identity }
@@ -28,6 +28,7 @@ import example.myapp.helloworld.grpc.helloworld.GreeterServiceClient
 import example.myapp.helloworld.grpc.helloworld.GreeterServicePowerApiHandler
 import example.myapp.helloworld.grpc.helloworld.HelloRequest
 import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Span
@@ -36,7 +37,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 class PowerApiSpecNetty extends PowerApiSpec("netty")
 class PowerApiSpecAkkaHttp extends PowerApiSpec("akka-http")
 
-class PowerApiSpec(backend: String)
+abstract class PowerApiSpec(backend: String)
     extends TestKit(ActorSystem(
       "GrpcExceptionHandlerSpec",
       ConfigFactory.parseString(s"""akka.grpc.client."*".backend = "$backend" """).withFallback(ConfigFactory.load())))
@@ -44,7 +45,8 @@ class PowerApiSpec(backend: String)
     with Matchers
     with ScalaFutures
     with Directives
-    with BeforeAndAfter {
+    with BeforeAndAfter
+    with BeforeAndAfterAll {
 
   override implicit val patienceConfig = PatienceConfig(5.seconds, Span(10, org.scalatest.time.Millis))
 
@@ -62,6 +64,10 @@ class PowerApiSpec(backend: String)
     if (client != null && !client.closed.isCompleted) {
       client.close().futureValue
     }
+  }
+  override protected def afterAll(): Unit = {
+    server.terminate(3.seconds)
+    super.afterAll()
   }
 
   "The power API" should {
@@ -134,10 +140,13 @@ class PowerApiSpec(backend: String)
 
       headers.isCompleted should be(false)
 
+      // As soon as the first item has arrived, the headers future
+      // should be redeemed but the fiveItems latch should still be open
+      // and the trailers future should not have been redeemed yet.
       firstItem.await(500, TimeUnit.MILLISECONDS)
-
-      headers.isCompleted should be(true)
       val trailers = headers.futureValue.trailers
+      fiveItems.getCount.toInt should be < 5
+
       trailers.isCompleted should be(false)
 
       fiveItems.await(500, TimeUnit.MILLISECONDS)
@@ -146,4 +155,5 @@ class PowerApiSpec(backend: String)
 
     }
   }
+
 }
